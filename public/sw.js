@@ -1,15 +1,3 @@
-self.addEventListener('install', event => {
-    console.log('[Service Worker] Installing Service Worker ...', event);
-    event.waitUntil(self.skipWaiting());
-});
-
-self.addEventListener('activate', event => {
-    console.log('[Service Worker] Activating Service Worker ...', event);
-    return self.clients.claim();
-});
-
-
-
 const CACHE_STATIC_NAME = 'static_v2';
 const URLS_TO_PRECACHE = [
     '/',
@@ -40,12 +28,34 @@ self.addEventListener('install', event => {
     );
 });
 
+self.addEventListener('activate', event => {
+    console.log('[Service Worker] Activating Service Worker ...', event);
+    event.waitUntil(
+        caches.keys()
+        .then(cacheNames => {
+            return Promise.all(cacheNames.map(cacheName => {
+                if (cacheName !== CACHE_STATIC_NAME && cacheName !== CACHE_DYNAMIC_NAME) {
+                    console.log('[Service Worker] Removing old cache.', cacheName);
+                    return caches.delete(cacheName);
+                }
+            }));
+        })
+        .then(() => {
+            console.log('[ServiceWorker] Claiming clients');
+            return self.clients.claim();
+        })
+    );
+});
+
+
 // Add a new cache for dynamic content
 const CACHE_DYNAMIC_NAME = 'dynamic_v1';
 self.addEventListener('fetch', event => {
     console.log('[Service Worker] Fetching something ....', event);
     event.respondWith(
+
         caches.match(event.request)
+        
         .then(response => {
             if (response) {
                 return response;
@@ -79,21 +89,3 @@ self.addEventListener('fetch', event => {
     );
 });
 
-self.addEventListener('activate', event => {
-    console.log('[Service Worker] Activating Service Worker ...', event);
-    event.waitUntil(
-        caches.keys()
-        .then(cacheNames => {
-            return Promise.all(cacheNames.map(cacheName => {
-                if (cacheName !== CACHE_STATIC_NAME && cacheName !== CACHE_DYNAMIC_NAME) {
-                    console.log('[Service Worker] Removing old cache.', cacheName);
-                    return caches.delete(cacheName);
-                }
-            }));
-        })
-        .then(() => {
-            console.log('[ServiceWorker] Claiming clients');
-            return self.clients.claim();
-        })
-    );
-});
